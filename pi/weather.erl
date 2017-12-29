@@ -1,10 +1,10 @@
 -module(weather).
--export([sender/1, start/1]).
+-export([sender/2, start/2]).
 
-start(SenderNode) ->
+start(SenderNode, Pin) ->
     % Make sure unicode works even in -noshell mode
     io:setopts(standard_io, [{encoding, unicode}]),
-    spawn(SenderNode, ?MODULE, sender, [self()]),
+    spawn(SenderNode, ?MODULE, sender, [self(), Pin]),
     receiver().
 
 receiver() ->
@@ -19,15 +19,15 @@ receiver() ->
     end,
     receiver().
 
-sender(Receiver) ->
-    Data = get_data(),
+sender(Receiver, Pin) ->
+    Data = get_data(Pin),
     Time = get_datetime(),
     Receiver ! {Time, Data},
     timer:sleep(60000),
-    sender(Receiver).
+    sender(Receiver, Pin).
 
-get_data() ->
-    Out = os:cmd("python am2302.py 4"),
+get_data(Pin) ->
+    Out = os:cmd("python am2302.py " ++ Pin),
     Cleaned = re:replace(Out, "(^\\s+)|(\\s+$)", "", [global, {return, list}]),
     case Cleaned =:= "failure" of
         true ->
