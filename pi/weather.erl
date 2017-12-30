@@ -20,40 +20,6 @@ start(SenderNode, Pin) ->
     % Start receiving messages from sender
     receiver().
 
-%% @spec receiver() -> no_return()
-%% @doc Receives messages and logs the data to file.
-
-receiver() ->
-    receive
-        {Sender, Measurements} ->
-            % Format measurements for CSV file
-            Lines = format_measurements(lists:reverse(Measurements)),
-            % Append the lines to file
-            file:write_file("history.csv", Lines, [append])
-    end,
-    % Send acknowledgement to sender
-    Sender ! ack,
-    receiver().
-
-%% @spec format_measurements(Measurements::[measurement()]) -> string()
-%% @doc Iterates over the measurements, shows them in stdout and returns
-%% formatted lines for the CSV file.
-
-format_measurements([]) ->
-    [];
-format_measurements([{Time, failure} | R]) ->
-    io:format("~s: Failure~n", [Time]),
-    % Don't add failure to CSV, continue with next measurement
-    format_measurements(R);
-format_measurements([{Time, {Temp, Hum}} | R]) ->
-    % Print data to output nicely
-    io:format("~s: ~p \x{b0}C, ~p%~n", [Time, Temp, Hum]),
-    % Format the data for CSV
-    Line = lists:flatten(
-        io_lib:format("~s,~p,~p~n", [Time, Temp, Hum])),
-    % Continue with next measurement
-    [Line | format_measurements(R)].
-
 %% @spec sender(Receiver::pid(), Pin::string()) -> no_return()
 %% @doc Reads data from sensor in some interval and sends the measurements
 %% to the receiver process.
@@ -87,6 +53,40 @@ sender(Receiver, Pin, Queue) ->
     % Wait for some time before taking the next measurements
     timer:sleep(60000),
     sender(Receiver, Pin, SendQueue).
+
+%% @spec receiver() -> no_return()
+%% @doc Receives messages and logs the data to file.
+
+receiver() ->
+    receive
+        {Sender, Measurements} ->
+            % Format measurements for CSV file
+            Lines = format_measurements(lists:reverse(Measurements)),
+            % Append the lines to file
+            file:write_file("history.csv", Lines, [append])
+    end,
+    % Send acknowledgement to sender
+    Sender ! ack,
+    receiver().
+
+%% @spec format_measurements(Measurements::[measurement()]) -> string()
+%% @doc Iterates over the measurements, shows them in stdout and returns
+%% formatted lines for the CSV file.
+
+format_measurements([]) ->
+    [];
+format_measurements([{Time, failure} | R]) ->
+    io:format("~s: Failure~n", [Time]),
+    % Don't add failure to CSV, continue with next measurement
+    format_measurements(R);
+format_measurements([{Time, {Temp, Hum}} | R]) ->
+    % Print data to output nicely
+    io:format("~s: ~p \x{b0}C, ~p%~n", [Time, Temp, Hum]),
+    % Format the data for CSV
+    Line = lists:flatten(
+        io_lib:format("~s,~p,~p~n", [Time, Temp, Hum])),
+    % Continue with next measurement
+    [Line | format_measurements(R)].
 
 %% @spec get_measurement(Pin::string()) -> measurement()
 %% @doc Uses the Python script to read temperature and humidity on the given
