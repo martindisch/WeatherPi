@@ -27,7 +27,7 @@ receiver() ->
     receive
         {Sender, Measurements} ->
             % Format measurements for CSV file
-            Lines = format_measurements(Measurements),
+            Lines = format_measurements(lists:reverse(Measurements)),
             % Append the lines to file
             file:write_file("history.csv", Lines, [append])
     end,
@@ -65,19 +65,19 @@ sender(Receiver, Pin) ->
 %%           no_return()
 %% @doc Reads data from sensor in some interval and sends the measurements
 %% to the receiver process. In case the receiver can't be reached, the
-%% measurements are kept in the queue to be sent later.
+%% measurements are kept in the queue to be sent later. The queue is in reverse
+%% chronological order, because new measurements are appended to the head to
+%% prevent having to iterate over a possibly very long list every time.
 
 sender(Receiver, Pin, Queue) ->
-    % Get measurement
-    Measurement = get_measurement(Pin),
-    % Append it to the existing measurements
-    NewQueue = Queue ++ [Measurement],
+    % Take measurement and add it to the head of the queue
+    NewQueue = [get_measurement(Pin) | Queue],
     % Send the whole queue to the receiver
     Receiver ! {self(), NewQueue},
     % Wait for acknowledgement
     receive
         ack ->
-            % Empty the queue
+            % Sent successfully, empty the queue
             SendQueue = []
     after
         1000 ->
