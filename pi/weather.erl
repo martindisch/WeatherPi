@@ -2,6 +2,10 @@
 %% (the sender) and the base station.
 %% The idea is to start execution on the base station, which will spawn the
 %% sender process on the Pi before getting ready to receive its messages.
+%%
+%% @type measurement() = {Time::string(), {Temperature::float(),
+%%                        Humidity::float()} | failure}.
+%% A temperature and humidity measurement.
 -module(weather).
 -export([sender/2, start/2]).
 
@@ -21,39 +25,71 @@ start(SenderNode, Pin) ->
 
 receiver() ->
     receive
-        {Time, failure} ->
-            % No measurements could be taken
-            io:format("~s: Failure~n", [Time]);
-        {Time, {Temp, Hum}} ->
-            % Print data to output nicely
-            io:format("~s: ~p \x{b0}C, ~p%~n", [Time, Temp, Hum]),
-            % Format the data for CSV
-            Line = lists:flatten(
-                io_lib:format("~s,~p,~p~n", [Time, Temp, Hum])),
-            % Append the line to the CSV file
-            file:write_file("history.csv", Line, [append])
+        {Sender, Measurements} ->
+            treat_measurements(Measurements)
     end,
+    % Send acknowledgement to sender
+    Sender ! ack,
     receiver().
+
+%% @spec treat_measurements([measurement()]) -> ok
+%% @doc Iterates over the measurements, shows them in stdout and appends
+%% them to the CSV file.
+
+treat_measurements([]) ->
+    ok;
+treat_measurements([{Time, failure} | R]) ->
+    io:format("~s: Failure~n", [Time]),
+    treat_measurements(R);
+treat_measurements([{Time, {Temp, Hum}} | R]) ->
+    % Print data to output nicely
+    io:format("~s: ~p \x{b0}C, ~p%~n", [Time, Temp, Hum]),
+    % Format the data for CSV
+    Line = lists:flatten(
+        io_lib:format("~s,~p,~p~n", [Time, Temp, Hum])),
+    % Append the line to the CSV file
+    file:write_file("history.csv", Line, [append]),
+    treat_measurements(R).
 
 %% @spec sender(Receiver::pid(), Pin::string()) -> no_return()
 %% @doc Reads data from sensor in some interval and sends the measurements
 %% to the receiver process.
 
 sender(Receiver, Pin) ->
-    % Get measurements and time
-    Data = get_data(Pin),
-    Time = get_datetime(),
-    % Send both to receiver
-    Receiver ! {Time, Data},
+    sender(Receiver, Pin, []).
+
+%% @spec sender(Receiver::pid(), Pin::string(), Queue::[measurement()]) ->
+%%           no_return()
+%% @doc Reads data from sensor in some interval and sends the measurements
+%% to the receiver process. In case the receiver can't be reached, the
+%% measurements are kept in the queue to be sent later.
+
+sender(Receiver, Pin, Queue) ->
+    % Get measurement
+    Measurement = get_measurement(Pin),
+    % Append it to the existing measurements
+    NewQueue = Queue ++ [Measurement],
+    % Send the whole queue to the receiver
+    Receiver ! {self(), NewQueue},
+    % Wait for acknowledgement
+    receive
+        ack ->
+            % Empty the queue
+            SendQueue = []
+    after
+        1000 ->
+            % Network likely broke, keep existing queue
+            SendQueue = NewQueue
+    end,
     % Wait for some time before taking the next measurements
     timer:sleep(60000),
-    sender(Receiver, Pin).
+    sender(Receiver, Pin, SendQueue).
 
-%% @spec get_data(Pin::string()) -> {float(), float()} | failure
+%% @spec get_measurement(Pin::string()) -> measurement()
 %% @doc Uses the Python script to read temperature and humidity on the given
-%% GPIO pin and returns them as a tuple.
+%% GPIO pin and returns them as a tuple with the local time.
 
-get_data(Pin) ->
+get_measurement(Pin) ->
     % Call the Python script with the given pin
     Out = os:cmd("python am2302.py " ++ Pin),
     % Strip whitespace (linebreaks)
@@ -61,7 +97,7 @@ get_data(Pin) ->
     case Cleaned =:= "failure" of
         true ->
             % Python script was unsuccessful, return accordingly
-            failure;
+            {get_datetime(), failure};
         false ->
             % Get individual strings from output
             [TempStr, HumStr] = string:tokens(Cleaned, ","),
@@ -69,7 +105,7 @@ get_data(Pin) ->
             Temp = list_to_float(TempStr),
             Hum = list_to_float(HumStr),
             % Return measurements as tuple
-            {Temp, Hum}
+            {get_datetime(), {Temp, Hum}}
     end.
 
 %% @spec get_datetime() -> string()
