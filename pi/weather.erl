@@ -26,30 +26,33 @@ start(SenderNode, Pin) ->
 receiver() ->
     receive
         {Sender, Measurements} ->
-            treat_measurements(Measurements)
+            % Format measurements for CSV file
+            Lines = format_measurements(Measurements),
+            % Append the lines to file
+            file:write_file("history.csv", Lines, [append])
     end,
     % Send acknowledgement to sender
     Sender ! ack,
     receiver().
 
-%% @spec treat_measurements([measurement()]) -> ok
-%% @doc Iterates over the measurements, shows them in stdout and appends
-%% them to the CSV file.
+%% @spec format_measurements(Measurements::[measurement()]) -> string()
+%% @doc Iterates over the measurements, shows them in stdout and returns
+%% formatted lines for the CSV file.
 
-treat_measurements([]) ->
-    ok;
-treat_measurements([{Time, failure} | R]) ->
+format_measurements([]) ->
+    [];
+format_measurements([{Time, failure} | R]) ->
     io:format("~s: Failure~n", [Time]),
-    treat_measurements(R);
-treat_measurements([{Time, {Temp, Hum}} | R]) ->
+    % Don't add failure to CSV, continue with next measurement
+    format_measurements(R);
+format_measurements([{Time, {Temp, Hum}} | R]) ->
     % Print data to output nicely
     io:format("~s: ~p \x{b0}C, ~p%~n", [Time, Temp, Hum]),
     % Format the data for CSV
     Line = lists:flatten(
         io_lib:format("~s,~p,~p~n", [Time, Temp, Hum])),
-    % Append the line to the CSV file
-    file:write_file("history.csv", Line, [append]),
-    treat_measurements(R).
+    % Continue with next measurement
+    [Line | format_measurements(R)].
 
 %% @spec sender(Receiver::pid(), Pin::string()) -> no_return()
 %% @doc Reads data from sensor in some interval and sends the measurements
