@@ -46,7 +46,7 @@ sender(Receiver, Pin, Queue) ->
             % Sent successfully, empty the queue
             SendQueue = []
     after
-        1000 ->
+        60000 ->
             % Network likely broke, keep existing queue
             SendQueue = NewQueue
     end,
