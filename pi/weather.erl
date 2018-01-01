@@ -36,23 +36,23 @@ sender(Receiver, Pin) ->
 %% prevent having to iterate over a possibly very long list every time.
 
 sender(Receiver, Pin, Queue) ->
-    % Take measurement and add it to the head of the queue
-    NewQueue = [get_measurement(Pin) | Queue],
-    % Send the whole queue to the receiver
-    Receiver ! {self(), NewQueue},
-    % Wait for acknowledgement
+    % Check if previous send has been acknowledged
     receive
         ack ->
-            % Sent successfully, empty the queue
-            SendQueue = []
+            % If so, empty the queue
+            CurrentQueue = []
     after
         1000 ->
-            % Network likely broke, keep existing queue
-            SendQueue = NewQueue
+            % If not, keep the queue to send its contents again
+            CurrentQueue = Queue
     end,
+    % Take measurement and add it to the head of the queue
+    NewQueue = [get_measurement(Pin) | CurrentQueue],
+    % Send the whole queue to the receiver
+    Receiver ! {self(), NewQueue},
     % Wait for some time before taking the next measurements
     timer:sleep(60000),
-    sender(Receiver, Pin, SendQueue).
+    sender(Receiver, Pin, NewQueue).
 
 %% @spec receiver() -> no_return()
 %% @doc Receives messages and logs the data to file.
