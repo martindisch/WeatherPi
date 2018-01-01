@@ -46,7 +46,7 @@ sender(Receiver, Pin, Queue) ->
             % Sent successfully, empty the queue
             SendQueue = []
     after
-        60000 ->
+        1000 ->
             % Network likely broke, keep existing queue
             SendQueue = NewQueue
     end,
@@ -58,28 +58,45 @@ sender(Receiver, Pin, Queue) ->
 %% @doc Receives messages and logs the data to file.
 
 receiver() ->
+    receiver(0).
+
+%% @spec receiver(LastTime::integer()) -> no_return()
+%% @doc Receives messages and logs the data to file. `LastTime' is the
+%% timestamp of the last measurement that has been received and is used
+%% to ensure that no duplicates are logged, even if there has been duplication
+%% due to network issues.
+
+receiver(LastTime) ->
     receive
         {Sender, Measurements} ->
             % Format measurements for CSV file
-            Lines = format_measurements(lists:reverse(Measurements)),
+            Lines = format_measurements(
+                lists:reverse(Measurements), LastTime),
             % Append the lines to file
             file:write_file("history.csv", Lines, [append])
     end,
+    %% Keep timestamp of latest measurement
+    {NewLast, _} = lists:nth(1, Measurements),
     % Send acknowledgement to sender
     Sender ! ack,
-    receiver().
+    receiver(NewLast).
 
-%% @spec format_measurements(Measurements::[measurement()]) -> string()
+%% @spec format_measurements(Measurements::[measurement()],
+%%                           LastTime::integer) -> string()
 %% @doc Iterates over the measurements, shows them in stdout and returns
-%% formatted lines for the CSV file.
+%% formatted lines for the CSV file. `LastTime' is used to make sure that
+%% no duplicates are logged, even if there has been duplication due to
+%% network issues.
 
-format_measurements([]) ->
+format_measurements([], _) ->
     [];
-format_measurements([{SecondsUTC, failure} | R]) ->
+format_measurements([{SecondsUTC, failure} | R], LastTime)
+    when SecondsUTC > LastTime ->
     io:format("~s: Failure~n", [format_time(SecondsUTC)]),
     % Don't add failure to CSV, continue with next measurement
-    format_measurements(R);
-format_measurements([{SecondsUTC, {Temp, Hum}} | R]) ->
+    format_measurements(R, LastTime);
+format_measurements([{SecondsUTC, {Temp, Hum}} | R], LastTime)
+    when SecondsUTC > LastTime ->
     DateTime = format_time(SecondsUTC),
     % Print data to output nicely
     io:format("~s: ~p \x{b0}C, ~p%~n", [DateTime, Temp, Hum]),
@@ -87,7 +104,12 @@ format_measurements([{SecondsUTC, {Temp, Hum}} | R]) ->
     Line = lists:flatten(
         io_lib:format("~s,~p,~p~n", [DateTime, Temp, Hum])),
     % Continue with next measurement
-    [Line | format_measurements(R)].
+    [Line | format_measurements(R, LastTime)];
+format_measurements([_ | R], LastTime) ->
+    % This happens when the measurement is a duplicate, meaning that
+    % its time is less than the time of the latest measurement and has
+    % therefore been logged already. Continue with the next one.
+    format_measurements(R, LastTime).
 
 %% @spec get_measurement(Pin::string()) -> measurement()
 %% @doc Uses the Python script to read temperature and humidity on the given
