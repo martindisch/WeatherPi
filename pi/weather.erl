@@ -3,9 +3,9 @@
 %% The idea is to start execution on the base station, which will spawn the
 %% sender process on the Pi before getting ready to receive its messages.
 %%
-%% @type measurement() = {Time::string(), {Temperature::float(),
+%% @type measurement() = {Time::integer(), {Temperature::float(),
 %%                        Humidity::float()} | failure}.
-%% A temperature and humidity measurement.
+%% A temperature and humidity measurement with a seconds timestamp in UTC.
 -module(weather).
 -export([sender/2, start/2]).
 
@@ -75,16 +75,17 @@ receiver() ->
 
 format_measurements([]) ->
     [];
-format_measurements([{Time, failure} | R]) ->
-    io:format("~s: Failure~n", [Time]),
+format_measurements([{SecondsUTC, failure} | R]) ->
+    io:format("~s: Failure~n", [format_time(SecondsUTC)]),
     % Don't add failure to CSV, continue with next measurement
     format_measurements(R);
-format_measurements([{Time, {Temp, Hum}} | R]) ->
+format_measurements([{SecondsUTC, {Temp, Hum}} | R]) ->
+    DateTime = format_time(SecondsUTC),
     % Print data to output nicely
-    io:format("~s: ~p \x{b0}C, ~p%~n", [Time, Temp, Hum]),
+    io:format("~s: ~p \x{b0}C, ~p%~n", [DateTime, Temp, Hum]),
     % Format the data for CSV
     Line = lists:flatten(
-        io_lib:format("~s,~p,~p~n", [Time, Temp, Hum])),
+        io_lib:format("~s,~p,~p~n", [DateTime, Temp, Hum])),
     % Continue with next measurement
     [Line | format_measurements(R)].
 
@@ -100,7 +101,7 @@ get_measurement(Pin) ->
     case Cleaned =:= "failure" of
         true ->
             % Python script was unsuccessful, return accordingly
-            {get_datetime(), failure};
+            {erlang:system_time(seconds), failure};
         false ->
             % Get individual strings from output
             [TempStr, HumStr] = string:tokens(Cleaned, ","),
@@ -108,14 +109,21 @@ get_measurement(Pin) ->
             Temp = list_to_float(TempStr),
             Hum = list_to_float(HumStr),
             % Return measurements as tuple
-            {get_datetime(), {Temp, Hum}}
+            {erlang:system_time(seconds), {Temp, Hum}}
     end.
 
-%% @spec get_datetime() -> string()
-%% @doc Returns local time as "YYYY/MM/DD hh:mm:ss".
+%% @spec format_time(Seconds::integer()) -> string()
+%% @doc Takes seconds since 1970 (UTC) and returns the corresponding local
+%% time formatted as "YYYY/MM/DD hh:mm:ss".
 
-get_datetime() ->
-    {{Year, Month, Day}, {Hour, Min, Sec}} = erlang:localtime(),
+format_time(Seconds) ->
+    Base = calendar:datetime_to_gregorian_seconds({{1970, 1, 1}, {0, 0, 0}}),
+    % Get UTC datetime from seconds
+    TimeUTC = calendar:gregorian_seconds_to_datetime(Base + Seconds),
+    % Convert UTC datetime to local datetime
+    {{Year, Month, Day}, {Hour, Min, Sec}} =
+        calendar:universal_time_to_local_time(TimeUTC),
+    % Format
     lists:flatten(io_lib:format(
         "~4..0w/~2..0w/~2..0w ~2..0w:~2..0w:~2..0w",
         [Year, Month, Day, Hour, Min, Sec])).
