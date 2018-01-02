@@ -110,13 +110,11 @@ treat_measurements([{SecondsUTC, {Temp, Hum}} | R], LastTime)
     when SecondsUTC > LastTime ->
     % Send to server
     weatherserver ! {SecondsUTC, {Temp, Hum}},
-    % Get human-readable datetime
-    DateTime = format_time(SecondsUTC),
     % Print data to output nicely
-    io:format("~s: ~p \x{b0}C, ~p%~n", [DateTime, Temp, Hum]),
+    io:format("~s: ~p \x{b0}C, ~p%~n", [format_time(SecondsUTC), Temp, Hum]),
     % Format the data for CSV
     Line = lists:flatten(
-        io_lib:format("~s,~p,~p~n", [DateTime, Temp, Hum])),
+        io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])),
     % Continue with next measurement
     [Line | treat_measurements(R, LastTime)];
 treat_measurements([_ | R], LastTime) ->
