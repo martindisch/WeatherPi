@@ -7,7 +7,7 @@
 %%                        Humidity::float()} | failure}.
 %% A temperature and humidity measurement with a seconds timestamp in UTC.
 -module(weather).
--export([sender/2, start/2]).
+-export([sender/2, start/2, server/0, latest/3, history/3]).
 
 %% @spec start(SenderNode::node(), Pin::string()) -> no_return()
 %% @doc Spawns the sender process on the sender node and starts receiving.
@@ -15,6 +15,17 @@
 start(SenderNode, Pin) ->
     % Make sure unicode works even in -noshell mode
     io:setopts(standard_io, [{encoding, unicode}]),
+
+    % Start and register server process
+    register(weatherserver, spawn(?MODULE, server, [])),
+    % Start inets httpd server for mod_esi
+    inets:start(),
+    inets:start(
+        httpd, [{port, 8099}, {server_name, "weather"}, {document_root, "."},
+        {modules, [mod_esi]}, {server_root, "."},
+        {erl_script_alias, {"/esi", [weather]}}]
+    ),
+
     % Spawn sender process on the node with the sensor (Raspberry Pi)
     spawn(SenderNode, ?MODULE, sender, [self(), Pin]),
     % Start receiving messages from sender
@@ -97,6 +108,9 @@ format_measurements([{SecondsUTC, failure} | R], LastTime)
     format_measurements(R, LastTime);
 format_measurements([{SecondsUTC, {Temp, Hum}} | R], LastTime)
     when SecondsUTC > LastTime ->
+    % Send to server
+    weatherserver ! {SecondsUTC, {Temp, Hum}},
+    % Get human-readable datetime
     DateTime = format_time(SecondsUTC),
     % Print data to output nicely
     io:format("~s: ~p \x{b0}C, ~p%~n", [DateTime, Temp, Hum]),
@@ -149,3 +163,57 @@ format_time(Seconds) ->
     lists:flatten(io_lib:format(
         "~4..0w/~2..0w/~2..0w ~2..0w:~2..0w:~2..0w",
         [Year, Month, Day, Hour, Min, Sec])).
+
+%% @spec server() -> no_return()
+%% @doc Starts the weatherserver, which will be used by the ESI functions
+%% to get the data that the client requested.
+
+server() ->
+    server([]).
+
+%% @spec server(Measurements::[measurement()]) -> no_return()
+%% @doc The weatherserver, which will be used by the ESI functions
+%% to get the data that the client requested. At some point it will read all
+%% existing measurements from file and keep them in its measurements list.
+%% Whenever a new measurement is received, it will get a message containing it
+%% to add it to its own list of measurements. The measurements list is in
+%% reverse chronological order to quickly add new items to the head. This is
+%% also better for looking up measurements, because the recent data is most
+%% often requested.
+
+server(Measurements) ->
+    receive
+        {latest, PID} ->
+            % Send the most recent measurement to the requesting process
+            PID ! lists:nth(1, Measurements),
+            UpMeasurements = Measurements;
+        Measurement ->
+            % Received new measurement, add it to list
+            UpMeasurements = [Measurement | Measurements]
+    end,
+    server(UpMeasurements).
+
+%% @spec latest(Sid::term(), Env::env(), Inp::string()) -> ok | {error, Reason}
+%% @doc Responds to a HTTP request with the most recent measurement.
+
+latest(Sid, _, _) ->
+    % Request latest measurement
+    weatherserver ! {latest, self()},
+    receive
+        {SecondsUTC, {Temp, Hum}} ->
+            % Get human-readable datetime
+            DateTime = format_time(SecondsUTC),
+            % Format CSV line
+            Line = lists:flatten(
+                io_lib:format("~s,~p,~p~n", [DateTime, Temp, Hum])),
+            % Send response
+            mod_esi:deliver(Sid, [Line])
+    end.
+
+%% @spec history(Sid::term(), Env::env(), Inp::string()) ->
+%%           ok | {error, Reason}
+%% @doc Responds to a HTTP request with all measurements between some requested
+%% point in time and now.
+
+history(Sid, _, _) ->
+    mod_esi:deliver(Sid, ["TODO"]).
