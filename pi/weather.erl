@@ -7,7 +7,8 @@
 %%                        Humidity::float()} | failure}.
 %% A temperature and humidity measurement with a seconds timestamp in UTC.
 -module(weather).
--export([sender/2, start/2, server/0, format_time/1]).
+-export([sender/2, start/2, server/0,
+         format_time/1, format_csv/1, format_csv_line/1]).
 
 %% @spec start(SenderNode::node(), Pin::string()) -> no_return()
 %% @doc Spawns the sender process on the sender node and starts receiving.
@@ -113,8 +114,7 @@ treat_measurements([{SecondsUTC, {Temp, Hum}} | R], LastTime)
     % Print data to output nicely
     io:format("~s: ~p \x{b0}C, ~p%~n", [format_time(SecondsUTC), Temp, Hum]),
     % Format the data for CSV
-    Line = lists:flatten(
-        io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])),
+    Line = format_csv_line({SecondsUTC, {Temp, Hum}}),
     % Continue with next measurement
     [Line | treat_measurements(R, LastTime)];
 treat_measurements([_ | R], LastTime) ->
@@ -198,3 +198,29 @@ server(Measurements) ->
             UpMeasurements = [Measurement | Measurements]
     end,
     server(UpMeasurements).
+
+%% @spec format_csv(Measurements::[weather:measurement()]) -> string()
+%% @doc Accepts a list of measurements in reverse chronological order and
+%% returns its data in chronological order formatted as CSV.
+
+format_csv(Measurements) -> format_csv(Measurements, []).
+
+%% @spec format_csv(Measurements::[weather:measurement()],
+%%                  Acc::string()) -> string()
+%% @doc Accepts a list of measurements in reverse chronological order and
+%% returns its data in chronological order formatted as CSV. Uses an
+%% accumulator to efficiently reverse the list while converting its entries.
+
+format_csv([], Acc) ->
+    Acc;
+format_csv([Measurement | R], Acc) ->
+    % Format the data for CSV
+    Line = format_csv_line(Measurement),
+    % Continue with next measurement
+    format_csv(R, [Line | Acc]).
+
+%% @spec format_csv_line(Measurement::measurement()) -> string()
+%% @doc Returns a CSV formatted version of this measurement.
+
+format_csv_line({SecondsUTC, {Temp, Hum}}) ->
+    lists:flatten(io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])).

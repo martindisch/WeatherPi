@@ -10,10 +10,9 @@ latest(Sid, _, _) ->
     % Request latest measurement
     weatherserver ! {latest, self()},
     receive
-        {SecondsUTC, {Temp, Hum}} ->
+        Measurement ->
             % Format CSV line
-            Line = lists:flatten(
-                io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])),
+            Line = weather:format_csv_line(Measurement),
             % Send response
             mod_esi:deliver(Sid, [Line])
     end.
@@ -33,7 +32,7 @@ history(Sid, _, Inp) ->
             receive
                 Measurements ->
                     % Return a formatted CSV string
-                    Out = format_csv(Measurements),
+                    Out = weather:format_csv(Measurements),
                     mod_esi:deliver(Sid, [Out])
             after
                 5000 ->
@@ -45,24 +44,3 @@ history(Sid, _, Inp) ->
             % Most likely wrong type of argument
             mod_esi:deliver(Sid, ["Failure\n"])
     end.
-
-%% @spec format_csv(Measurements::[weather:measurement()]) -> string()
-%% @doc Accepts a list of measurements in reverse chronological order and
-%% returns its data in chronological order formatted as CSV.
-
-format_csv(Measurements) -> format_csv(Measurements, []).
-
-%% @spec format_csv(Measurements::[weather:measurement()],
-%%                  Acc::string()) -> string()
-%% @doc Accepts a list of measurements in reverse chronological order and
-%% returns its data in chronological order formatted as CSV. Uses an
-%% accumulator to efficiently reverse the list while converting its entries.
-
-format_csv([], Acc) ->
-    Acc;
-format_csv([{SecondsUTC, {Temp, Hum}} | R], Acc) ->
-    % Format the data for CSV
-    Line = lists:flatten(
-        io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])),
-    % Continue with next measurement
-    format_csv(R, [Line | Acc]).
