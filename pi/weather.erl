@@ -184,6 +184,14 @@ server(Measurements) ->
         {latest, PID} ->
             % Send the most recent measurement to the requesting process
             PID ! lists:nth(1, Measurements),
+            % Don't change measurements
+            UpMeasurements = Measurements;
+        {history, SecondsUTC, PID} ->
+            % Filter out measurements more recent than SecondsUTC
+            F = lists:filter(fun({T, _}) -> T > SecondsUTC end, Measurements),
+            % Send them to the requesting process
+            PID ! F,
+            % Don't change measurements
             UpMeasurements = Measurements;
         Measurement ->
             % Received new measurement, add it to list

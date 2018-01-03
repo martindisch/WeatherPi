@@ -25,5 +25,45 @@ latest(Sid, _, _) ->
 %% @doc Responds to a HTTP request with all measurements between some requested
 %% point in time and now.
 
-history(Sid, _, _) ->
-    mod_esi:deliver(Sid, ["TODO"]).
+history(Sid, _, Inp) ->
+    try list_to_integer(Inp) of
+        _ ->
+            % Get seconds
+            SecondsUTC = list_to_integer(Inp),
+            % Request measurements since then
+            weatherserver ! {history, SecondsUTC, self()},
+            receive
+                Measurements ->
+                    % Return a formatted CSV string
+                    Out = format_csv(Measurements),
+                    mod_esi:deliver(Sid, [Out])
+            after
+                5000 ->
+                    mod_esi:deliver(Sid, ["Failure\n"])
+            end
+    catch
+        _:_ ->
+            % Most likely wrong type of argument
+            mod_esi:deliver(Sid, ["Failure\n"])
+    end.
+
+%% @spec format_csv(Measurements::[weather:measurement()]) -> string()
+%% @doc Accepts a list of measurements in reverse chronological order and
+%% returns its data in chronological order formatted as CSV.
+
+format_csv(Measurements) -> format_csv(Measurements, []).
+
+%% @spec format_csv(Measurements::[weather:measurement()],
+%%                  Acc::string()) -> string()
+%% @doc Accepts a list of measurements in reverse chronological order and
+%% returns its data in chronological order formatted as CSV. Uses an
+%% accumulator to efficiently reverse the list while converting its entries.
+
+format_csv([], Acc) ->
+    Acc;
+format_csv([{SecondsUTC, {Temp, Hum}} | R], Acc) ->
+    % Format the data for CSV
+    Line = lists:flatten(
+        io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])),
+    % Continue with next measurement
+    format_csv(R, [Line | Acc]).
