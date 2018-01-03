@@ -2,6 +2,7 @@
 %% the most recent measurement or all measurements since some point in time.
 -module(esi).
 -export([latest/3, history/3]).
+-import(util, [format_csv/1, format_csv_line/1]).
 
 %% @spec latest(Sid::term(), Env::env(), Inp::string()) -> ok | {error, Reason}
 %% @doc Responds to a HTTP request with the most recent measurement.
@@ -12,7 +13,7 @@ latest(Sid, _, _) ->
     receive
         Measurement ->
             % Format CSV line
-            Line = weather:format_csv_line(Measurement),
+            Line = format_csv_line(Measurement),
             % Send response
             mod_esi:deliver(Sid, [Line])
     end.
@@ -32,7 +33,7 @@ history(Sid, _, Inp) ->
             receive
                 Measurements ->
                     % Return a formatted CSV string
-                    Out = weather:format_csv(Measurements),
+                    Out = format_csv(Measurements),
                     mod_esi:deliver(Sid, [Out])
             after
                 5000 ->
