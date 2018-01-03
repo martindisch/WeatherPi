@@ -11,11 +11,9 @@ latest(Sid, _, _) ->
     weatherserver ! {latest, self()},
     receive
         {SecondsUTC, {Temp, Hum}} ->
-            % Get human-readable datetime
-            DateTime = weather:format_time(SecondsUTC),
             % Format CSV line
             Line = lists:flatten(
-                io_lib:format("~s,~p,~p~n", [DateTime, Temp, Hum])),
+                io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])),
             % Send response
             mod_esi:deliver(Sid, [Line])
     end.
@@ -39,6 +37,7 @@ history(Sid, _, Inp) ->
                     mod_esi:deliver(Sid, [Out])
             after
                 5000 ->
+                    % Timeout
                     mod_esi:deliver(Sid, ["Failure\n"])
             end
     catch
