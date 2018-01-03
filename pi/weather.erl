@@ -7,7 +7,7 @@
 %%                        Humidity::float()} | failure}.
 %% A temperature and humidity measurement with a seconds timestamp in UTC.
 -module(weather).
--export([sender/2, start/2, server/0, latest/3, history/3]).
+-export([sender/2, start/2, server/0, format_time/1]).
 
 %% @spec start(SenderNode::node(), Pin::string()) -> no_return()
 %% @doc Spawns the sender process on the sender node and starts receiving.
@@ -23,7 +23,7 @@ start(SenderNode, Pin) ->
     inets:start(
         httpd, [{port, 8099}, {server_name, "weather"}, {document_root, "."},
         {modules, [mod_esi]}, {server_root, "."},
-        {erl_script_alias, {"/esi", [weather]}}]
+        {erl_script_alias, {"/weather", [esi]}}]
     ),
 
     % Spawn sender process on the node with the sensor (Raspberry Pi)
@@ -190,28 +190,3 @@ server(Measurements) ->
             UpMeasurements = [Measurement | Measurements]
     end,
     server(UpMeasurements).
-
-%% @spec latest(Sid::term(), Env::env(), Inp::string()) -> ok | {error, Reason}
-%% @doc Responds to a HTTP request with the most recent measurement.
-
-latest(Sid, _, _) ->
-    % Request latest measurement
-    weatherserver ! {latest, self()},
-    receive
-        {SecondsUTC, {Temp, Hum}} ->
-            % Get human-readable datetime
-            DateTime = format_time(SecondsUTC),
-            % Format CSV line
-            Line = lists:flatten(
-                io_lib:format("~s,~p,~p~n", [DateTime, Temp, Hum])),
-            % Send response
-            mod_esi:deliver(Sid, [Line])
-    end.
-
-%% @spec history(Sid::term(), Env::env(), Inp::string()) ->
-%%           ok | {error, Reason}
-%% @doc Responds to a HTTP request with all measurements between some requested
-%% point in time and now.
-
-history(Sid, _, _) ->
-    mod_esi:deliver(Sid, ["TODO"]).
