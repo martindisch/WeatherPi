@@ -1,10 +1,11 @@
-%% @doc This module provides utility functions for formatting and getting
-%% measurements using the sensor-specific Python script.
+%% @doc This module provides utility functions for formatting, reading
+%% measurements from file and acquiring measurements using the
+%% sensor-specific Python script.
 -module(util).
 -export([get_measurement/1, read_history/1,
          format_time/1, format_csv/1, format_csv_line/1]).
 
-%% @spec get_measurement(Pin::string()) -> measurement()
+%% @spec get_measurement(Pin::string()) -> weather:measurement()
 %% @doc Uses the Python script to read temperature and humidity on the given
 %% GPIO pin and returns them as a tuple with the local time.
 
@@ -27,16 +28,16 @@ get_measurement(Pin) ->
             {erlang:system_time(seconds), {Temp, Hum}}
     end.
 
-%% @spec read_history(Filename) -> [weather:measurement()]
-%% Reads the measurements that have previously been written to file and returns
-%% them in reverse chronological order.
+%% @spec read_history(Filename::string()) -> [weather:measurement()]
+%% @doc Reads the measurements that have previously been written to file and
+%% returns them in reverse chronological order.
 
 read_history(Filename) ->
     Lines = read_lines(Filename),
     convert_lines(Lines).
 
 %% @spec convert_lines(Lines::[string()] | no_such_file) ->
-%%           [weather:measurement]
+%%           [weather:measurement()]
 %% @doc Deals with the result of reading the lines from CSV, converting it
 %% to a reversed list of measurements.
 
@@ -48,7 +49,7 @@ convert_lines(Lines) ->
     convert_lines(Lines, []).
 
 %% @spec convert_lines(Lines::[string()], Acc::[weather:measurement()]) ->
-%%           [weather:measurement]
+%%           [weather:measurement()]
 %% @doc Converts the CSV lines to a list of measurements, reversing the order
 %% in the process by using an accumulator.
 
@@ -126,7 +127,7 @@ format_csv([Measurement | R], Acc) ->
     % Continue with next measurement
     format_csv(R, [Line | Acc]).
 
-%% @spec format_csv_line(Measurement::measurement()) -> string()
+%% @spec format_csv_line(Measurement::weather:measurement()) -> string()
 %% @doc Returns a CSV formatted version of this measurement.
 
 format_csv_line({SecondsUTC, {Temp, Hum}}) ->
