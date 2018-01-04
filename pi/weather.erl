@@ -125,15 +125,18 @@ treat_measurements([_ | R], LastTime) ->
 
 %% @spec server() -> no_return()
 %% @doc Starts the weatherserver, which will be used by the ESI functions
-%% to get the data that the client requested.
+%% to get the data that the client requested. On startup, it will attempt to
+%% read any existing measurements from file, so it has the complete history.
 
 server() ->
-    server([]).
+    % Read previous measurements from file
+    Existing = util:read_history("history.csv"),
+    % Start server with this data
+    server(Existing).
 
 %% @spec server(Measurements::[measurement()]) -> no_return()
 %% @doc The weatherserver, which will be used by the ESI functions
-%% to get the data that the client requested. At some point it will read all
-%% existing measurements from file and keep them in its measurements list.
+%% to get the data that the client requested.
 %% Whenever a new measurement is received, it will get a message containing it
 %% to add it to its own list of measurements. The measurements list is in
 %% reverse chronological order to quickly add new items to the head. This is
