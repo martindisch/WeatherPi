@@ -4,8 +4,8 @@
     <string name="historic">Historical data</string>
     <string name="none" translatable="false">-</string>
     <string name="error_connecting">Could not reach server</string>
-    <string name="format_temp" translatable="false">%s °C</string>
-    <string name="format_hum" translatable="false">%s%%</string>
+    <string name="format_temp" translatable="false">%.1f °C</string>
+    <string name="format_hum" translatable="false">%.1f%%</string>
     <string name="error_parsing">Could not read server response</string>
     <string name="humidity">Humidity (% relative)</string>
     <string name="temperature">Temperature (°C)</string>

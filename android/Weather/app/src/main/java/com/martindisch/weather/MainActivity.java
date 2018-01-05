@@ -26,7 +26,6 @@ import com.loopj.android.http.AsyncHttpResponseHandler;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 
 import cz.msebera.android.httpclient.Header;
 
@@ -104,7 +103,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mSwipeContainer.setRefreshing(true);
         AsyncHttpClient client = new AsyncHttpClient();
         client.setMaxRetriesAndTimeout(1, 500);
-        client.get("http://" + getString(R.string.IP) + (all ? "/history" : "/latest"), new AsyncHttpResponseHandler() {
+        client.get("http://" + getString(R.string.IP) + (all ? "/weather/esi:history/0" : "/weather/esi:latest"), new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
                 if (all) {
@@ -138,22 +137,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void run() {
                 try {
-                    ArrayList<String[]> history = Util.parseHistory(responseBody);
-                    List<String[]> cutHistory = history;
-                    if (timeframe == WEEK && history.size() >= 10080) {
-                        cutHistory = history.subList(history.size() - 10080, history.size());
-                    } else if (timeframe == DAY && history.size() >= 1440) {
-                        cutHistory = history.subList(history.size() - 1440, history.size());
-                    }
-                    final List<String[]> fCutHistory = cutHistory;
-                    final String[] latest = history.get(history.size() - 1);
-                    ArrayList<Entry> temperature = new ArrayList<>(fCutHistory.size());
-                    ArrayList<Entry> humidity = new ArrayList<>(fCutHistory.size());
+                    final ArrayList<Number[]> history = Util.parseHistory(responseBody);
+                    ArrayList<Entry> temperature = new ArrayList<>(history.size());
+                    ArrayList<Entry> humidity = new ArrayList<>(history.size());
+                    final Number[] latest = history.get(history.size() - 1);
 
                     float counter = 0;
-                    for (String[] current : fCutHistory) {
-                        temperature.add(new Entry(counter++, Float.parseFloat(current[1])));
-                        humidity.add(new Entry(counter, Float.parseFloat(current[2])));
+                    for (Number[] current : history) {
+                        temperature.add(new Entry(counter++, current[1].floatValue()));
+                        humidity.add(new Entry(counter, current[2].floatValue()));
                     }
 
                     LineDataSet tempSet = new LineDataSet(temperature, getString(R.string.temperature));
@@ -167,15 +159,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            mLatestTemp.setText(String.format(getString(R.string.format_temp), latest[1]));
-                            mLatestHum.setText(String.format(getString(R.string.format_hum), latest[2]));
+                            mLatestTemp.setText(String.format(getString(R.string.format_temp), latest[1].floatValue()));
+                            mLatestHum.setText(String.format(getString(R.string.format_hum), latest[2].floatValue()));
                             mChart.fitScreen();
 
                             IAxisValueFormatter formatter = new IAxisValueFormatter() {
                                 @Override
                                 public String getFormattedValue(float value, AxisBase axis) {
-                                    int xValue = value >= fCutHistory.size() ? fCutHistory.size() - 1 : (int) value;
-                                    return Util.shortenTime(fCutHistory.get(xValue)[0]);
+                                    int xValue = value >= history.size() ? history.size() - 1 : (int) value;
+                                    return Util.shortTime(history.get(xValue)[0].longValue());
                                 }
                             };
                             mChart.getXAxis().setValueFormatter(formatter);
@@ -209,9 +201,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void updateLatest(final byte[] responseBody) {
         try {
-            String[] latest = Util.parseEntry(responseBody);
-            mLatestTemp.setText(String.format(getString(R.string.format_temp), latest[1]));
-            mLatestHum.setText(String.format(getString(R.string.format_hum), latest[2]));
+            Number[] latest = Util.parseEntry(responseBody);
+            mLatestTemp.setText(String.format(getString(R.string.format_temp), latest[1].floatValue()));
+            mLatestHum.setText(String.format(getString(R.string.format_hum), latest[2].floatValue()));
         } catch (IOException e) {
             Toast.makeText(getApplicationContext(), getString(R.string.error_parsing), Toast.LENGTH_SHORT).show();
         }

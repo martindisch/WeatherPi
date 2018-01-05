@@ -5,7 +5,11 @@ import android.util.JsonReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Locale;
+import java.util.TimeZone;
 
 /**
  * Contains utility functions for result parsing.
@@ -17,16 +21,16 @@ public class Util {
      * the time, temperature and humidity.
      *
      * @param responseBody the server's JSON response as a byte array
-     * @return a string array containing the time, temperature and humidity
+     * @return a Number array containing the time (long), temperature (double) and humidity (double)
      * @throws IOException if an error occurred during JSON parsing
      */
-    public static String[] parseEntry(byte[] responseBody) throws IOException {
+    public static Number[] parseEntry(byte[] responseBody) throws IOException {
         JsonReader reader = new JsonReader(new InputStreamReader(new ByteArrayInputStream(responseBody)));
         reader.beginArray();
-        String[] result = new String[3];
-        result[0] = reader.nextString();
-        result[1] = reader.nextString();
-        result[2] = reader.nextString();
+        Number[] result = new Number[3];
+        result[0] = reader.nextLong();
+        result[1] = reader.nextDouble();
+        result[2] = reader.nextDouble();
         reader.endArray();
         reader.close();
         return result;
@@ -37,20 +41,20 @@ public class Util {
      * each containing the time, temperature and humidity of a certain point in time.
      *
      * @param responseBody the server's JSON response as a byte array
-     * @return an ArrayList containing string arrays with the time, temperature and humidity of a
-     * measurement
+     * @return an ArrayList containing Number arrays with the time (long), temperature (double)
+     * and humidity (double) of a measurement
      * @throws IOException if an error occurred during JSON parsing
      */
-    public static ArrayList<String[]> parseHistory(byte[] responseBody) throws IOException {
+    public static ArrayList<Number[]> parseHistory(byte[] responseBody) throws IOException {
         JsonReader reader = new JsonReader(new InputStreamReader(new ByteArrayInputStream(responseBody)));
-        ArrayList<String[]> results = new ArrayList<>();
+        ArrayList<Number[]> results = new ArrayList<>();
         reader.beginArray();
         while (reader.hasNext()) {
             reader.beginArray();
-            String[] current = new String[3];
-            current[0] = reader.nextString();
-            current[1] = reader.nextString();
-            current[2] = reader.nextString();
+            Number[] current = new Number[3];
+            current[0] = reader.nextLong();
+            current[1] = reader.nextDouble();
+            current[2] = reader.nextDouble();
             reader.endArray();
             results.add(current);
         }
@@ -60,16 +64,17 @@ public class Util {
     }
 
     /**
-     * Takes a time of the form "2017/01/13 14:39:37" and returns a time
-     * of the form "13.01. 14:39".
+     * Takes a UNIX timestamp in UTC and returns the corresponding local time
+     * of the form "05.01. 11:29".
      *
-     * @param longTime the original time, e.g. "2017/01/13 14:39:37"
-     * @return the newly formatted time "13.01. 14:39"
+     * @param secondsUTC the original time, e.g. 1515148190
+     * @return the newly formatted time "05.01. 11:29"
      */
-    public static String shortenTime(String longTime) {
-        return longTime.substring(8, 10) + "." +
-                longTime.substring(5, 7) + ". " +
-                longTime.substring(11, 16);
+    public static String shortTime(long secondsUTC) {
+        Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
+        cal.setTimeInMillis(secondsUTC * 1000L);
+        SimpleDateFormat formatter = new SimpleDateFormat("dd.MM HH:mm", Locale.getDefault());
+        return formatter.format(cal.getTime());
     }
 
 }
