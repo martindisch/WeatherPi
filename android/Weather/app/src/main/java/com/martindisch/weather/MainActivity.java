@@ -37,7 +37,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private LineChart mChart;
     private RadioGroup mTimeframe;
     private Button mLoadGraph;
-    private byte[] mLastResponse = null;
     private int mTimeFrameSelection = MONTH;
 
     private static final int MONTH = 0, WEEK = 1, DAY = 2;
@@ -70,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         mTimeFrameSelection = DAY;
                         break;
                 }
-                if (mLastResponse != null) updateAll(mLastResponse);
+                fetchAndUpdate(true);
             }
         });
 
@@ -124,7 +123,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
                 if (all) {
-                    mLastResponse = responseBody;
                     updateAll(responseBody);
                 } else {
                     updateLatest(responseBody);
