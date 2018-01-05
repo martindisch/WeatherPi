@@ -26,6 +26,7 @@ import com.loopj.android.http.AsyncHttpResponseHandler;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Calendar;
 
 import cz.msebera.android.httpclient.Header;
 
@@ -37,9 +38,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private RadioGroup mTimeframe;
     private Button mLoadGraph;
     private byte[] mLastResponse = null;
-    private int mTimeFrameSelection = ALL;
+    private int mTimeFrameSelection = MONTH;
 
-    private static final int ALL = 0, WEEK = 1, DAY = 2;
+    private static final int MONTH = 0, WEEK = 1, DAY = 2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,7 +61,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             public void onCheckedChanged(RadioGroup radioGroup, int i) {
                 switch (i) {
                     case R.id.rbAll:
-                        mTimeFrameSelection = ALL;
+                        mTimeFrameSelection = MONTH;
                         break;
                     case R.id.rbWeek:
                         mTimeFrameSelection = WEEK;
@@ -69,7 +70,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         mTimeFrameSelection = DAY;
                         break;
                 }
-                if (mLastResponse != null) updateAll(mLastResponse, mTimeFrameSelection);
+                if (mLastResponse != null) updateAll(mLastResponse);
             }
         });
 
@@ -101,14 +102,30 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     private void fetchAndUpdate(final boolean all) {
         mSwipeContainer.setRefreshing(true);
+
+        // Get timestamp for selected starting time
+        Calendar cal = Calendar.getInstance();
+        switch (mTimeFrameSelection) {
+            case DAY:
+                cal.add(Calendar.DAY_OF_MONTH, -1);
+                break;
+            case WEEK:
+                cal.add(Calendar.DAY_OF_MONTH, -7);
+                break;
+            case MONTH:
+                cal.add(Calendar.MONTH, -1);
+                break;
+        }
+        long secondsUTC = cal.getTime().getTime() / 1000;
+
         AsyncHttpClient client = new AsyncHttpClient();
         client.setMaxRetriesAndTimeout(1, 500);
-        client.get("http://" + getString(R.string.IP) + (all ? "/weather/esi:history/0" : "/weather/esi:latest"), new AsyncHttpResponseHandler() {
+        client.get("http://" + getString(R.string.IP) + (all ? "/weather/esi:history/" + secondsUTC : "/weather/esi:latest"), new AsyncHttpResponseHandler() {
             @Override
             public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
                 if (all) {
                     mLastResponse = responseBody;
-                    updateAll(responseBody, mTimeFrameSelection);
+                    updateAll(responseBody);
                 } else {
                     updateLatest(responseBody);
                 }
@@ -123,16 +140,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     /**
-     * Receives the server's response (full history), parses it, and displays the latest data as
-     * well as the graph.
+     * Receives the server's response, parses it, and displays the latest data as well as the graph.
      *
      * @param responseBody the server's response
-     * @param timeframe    the timeframe to show in the graph, one of<br/>
-     *                     ALL = 0<br/>
-     *                     WEEK = 1<br/>
-     *                     DAY = 2
      */
-    private void updateAll(final byte[] responseBody, final int timeframe) {
+    private void updateAll(final byte[] responseBody) {
         new Thread(new Runnable() {
             @Override
             public void run() {

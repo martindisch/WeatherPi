@@ -8,7 +8,7 @@
     <string name="humidity">Luftfeuchtigkeit (% relativ)</string>
     <string name="temperature">Temperatur (°C)</string>
     <string name="refresh">Aktualisieren</string>
-    <string name="all">Komplett</string>
+    <string name="all">1 Monat</string>
     <string name="day">24 Stunden</string>
     <string name="week">7 Tage</string>
     <string name="load_graph">Graph laden</string>

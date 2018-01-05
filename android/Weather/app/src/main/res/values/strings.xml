@@ -10,7 +10,7 @@
     <string name="humidity">Humidity (% relative)</string>
     <string name="temperature">Temperature (°C)</string>
     <string name="refresh">Refresh</string>
-    <string name="all">Complete</string>
+    <string name="all">Past month</string>
     <string name="week">Past 7 days</string>
     <string name="day">Past 24 hours</string>
     <string name="load_graph">Load graph</string>
