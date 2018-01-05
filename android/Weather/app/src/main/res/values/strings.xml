@@ -1,0 +1,17 @@
+<resources>
+    <string name="app_name">Weather</string>
+    <string name="latest">Latest data</string>
+    <string name="historic">Historical data</string>
+    <string name="none" translatable="false">-</string>
+    <string name="error_connecting">Could not reach server</string>
+    <string name="format_temp" translatable="false">%s °C</string>
+    <string name="format_hum" translatable="false">%s%%</string>
+    <string name="error_parsing">Could not read server response</string>
+    <string name="humidity">Humidity (% relative)</string>
+    <string name="temperature">Temperature (°C)</string>
+    <string name="refresh">Refresh</string>
+    <string name="all">Complete</string>
+    <string name="week">Past 7 days</string>
+    <string name="day">Past 24 hours</string>
+    <string name="load_graph">Load graph</string>
+</resources>

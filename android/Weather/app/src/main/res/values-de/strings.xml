@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wetter</string>
+    <string name="error_connecting">Server nicht erreichbar</string>
+    <string name="error_parsing">Daten nicht lesbar</string>
+    <string name="historic">Frühere Daten</string>
+    <string name="latest">Aktuelle Daten</string>
+    <string name="humidity">Luftfeuchtigkeit (% relativ)</string>
+    <string name="temperature">Temperatur (°C)</string>
+    <string name="refresh">Aktualisieren</string>
+    <string name="all">Komplett</string>
+    <string name="day">24 Stunden</string>
+    <string name="week">7 Tage</string>
+    <string name="load_graph">Graph laden</string>
+</resources>
