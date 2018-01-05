@@ -3,7 +3,8 @@
 %% sensor-specific Python script.
 -module(util).
 -export([get_measurement/1, read_history/1,
-         format_time/1, format_csv/1, format_csv_line/1]).
+         format_time/1, format_csv/1, format_csv_line/1,
+         format_json/1, format_json_item/1]).
 
 %% @spec get_measurement(Pin::string()) -> weather:measurement()
 %% @doc Uses the Python script to read temperature and humidity on the given
@@ -106,7 +107,7 @@ format_time(Seconds) ->
         "~4..0w/~2..0w/~2..0w ~2..0w:~2..0w:~2..0w",
         [Year, Month, Day, Hour, Min, Sec])).
 
-%% @spec format_csv(Measurements::[weather:measurement()]) -> string()
+%% @spec format_csv(Measurements::[weather:measurement()]) -> list()
 %% @doc Accepts a list of measurements in reverse chronological order and
 %% returns its data in chronological order formatted as CSV.
 
@@ -114,7 +115,7 @@ format_csv(Measurements) ->
     format_csv(Measurements, []).
 
 %% @spec format_csv(Measurements::[weather:measurement()],
-%%                  Acc::string()) -> string()
+%%                  Acc::string()) -> list()
 %% @doc Accepts a list of measurements in reverse chronological order and
 %% returns its data in chronological order formatted as CSV. Uses an
 %% accumulator to efficiently reverse the list while converting its entries.
@@ -127,8 +128,45 @@ format_csv([Measurement | R], Acc) ->
     % Continue with next measurement
     format_csv(R, [Line | Acc]).
 
-%% @spec format_csv_line(Measurement::weather:measurement()) -> string()
+%% @spec format_csv_line(Measurement::weather:measurement()) -> list()
 %% @doc Returns a CSV formatted version of this measurement.
 
 format_csv_line({SecondsUTC, {Temp, Hum}}) ->
     lists:flatten(io_lib:format("~p,~p,~p~n", [SecondsUTC, Temp, Hum])).
+
+%% @spec format_json(Measurements::[weather:measurement()]) -> list()
+%% @doc Accepts a list of measurements in reverse chronological order and
+%% returns its data in chronological order formatted as JSON.
+
+format_json(Measurements) ->
+    % Start accumulator with last character, the closing bracket
+    format_json(Measurements, "]").
+
+%% @spec format_json(Measurements::[weather:measurement()],
+%%                  Acc::string()) -> list()
+%% @doc Accepts a list of measurements in reverse chronological order and
+%% returns its data in chronological order formatted as JSON. Uses an
+%% accumulator to efficiently reverse the list while converting its entries.
+
+format_json([], Acc) ->
+    % Get first measurement
+    F = lists:nth(1, Acc),
+    % Delete leading comma of the measurement
+    NewF = lists:delete(",", F),
+    % Delete first measurement from accumulator
+    NewAcc = lists:delete(F, Acc),
+    % Add updated first measurement to accumulator
+    FinalAcc = [NewF | NewAcc],
+    % End accumulator with first character, the opening bracket
+    ["[" | FinalAcc];
+format_json([Measurement | R], Acc) ->
+    % Format the data for CSV
+    Line = ["," | format_json_item(Measurement)],
+    % Continue with next measurement
+    format_json(R, [Line | Acc]).
+
+%% @spec format_json_item(Measurement::weather:measurement()) -> list()
+%% @doc Returns a JSON formatted version of this measurement.
+
+format_json_item({SecondsUTC, {Temp, Hum}}) ->
+    lists:flatten(io_lib:format("[~p,~p,~p]", [SecondsUTC, Temp, Hum])).
