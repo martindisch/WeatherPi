@@ -22,7 +22,7 @@ start(SenderNode, Pin) ->
     % Start inets httpd server for mod_esi
     inets:start(),
     inets:start(
-        httpd, [{port, 8099}, {server_name, "weather"}, {document_root, "."},
+        httpd, [{port, 8081}, {server_name, "weather"}, {document_root, "."},
         {modules, [mod_esi]}, {server_root, "."},
         {erl_script_alias, {"/weather", [esi]}}]
     ),
