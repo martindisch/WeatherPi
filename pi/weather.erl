@@ -63,7 +63,7 @@ sender(Receiver, Pin, Queue) ->
     % Send the whole queue to the receiver
     Receiver ! {self(), NewQueue},
     % Wait for some time before taking the next measurements
-    timer:sleep(60000),
+    timer:sleep(5 * 60000),
     sender(Receiver, Pin, NewQueue).
 
 %% @spec receiver() -> no_return()
