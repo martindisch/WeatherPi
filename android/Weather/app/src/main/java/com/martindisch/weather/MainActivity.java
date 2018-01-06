@@ -154,8 +154,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                     float counter = 0;
                     for (Number[] current : history) {
-                        temperature.add(new Entry(counter++, current[1].floatValue()));
-                        humidity.add(new Entry(counter, current[2].floatValue()));
+                        temperature.add(new Entry(counter, current[1].floatValue()));
+                        humidity.add(new Entry(counter++, current[2].floatValue()));
                     }
 
                     LineDataSet tempSet = new LineDataSet(temperature, getString(R.string.temperature));
