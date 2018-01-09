@@ -16,6 +16,10 @@ the sender is only connected to the local network over WiFi, which may not be
 turned on at all times. A significant portion of the code is dedicated to
 gracefully handling this case.
 
+How the different components of the system work together can be visualized
+like this:
+![System architecture diagram](architecture.png)
+
 The sender runs one process, which measures temperature and humidity every 5
 minutes and sends the data to the receiver. It expects an acknowledgement and
 if it doesn't receive it because the network broke, it will keep the
