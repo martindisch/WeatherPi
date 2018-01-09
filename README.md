@@ -1,5 +1,5 @@
 # WeatherPi
-A simple weather station with AM2302 temperature and humidity sensor, the
+A simple weather station with the AM2302 temperature and humidity sensor, the
 Raspberry Pi and an Android app.
 
 ## Description
@@ -7,14 +7,17 @@ Some of the code is very specific to the particular use case it was written
 for, but other parts can work independently and may be useful for other
 projects.
 
-The physical setup consists of two Raspberry Pi computers, one that is
-positioned in a relatively sheltered location outside and has the sensor
-attached to its GPIO pins (the sender) and the base station, which can be
-located anywhere inside the local network and also acts as the server for the
-Android app (the receiver). In the situation all of this was developed for,
-the sender is only connected to the local network over WiFi, which may not be
-turned on at all times. A significant portion of the code is dedicated to
-gracefully handling this case.
+The physical setup consists of two Raspberry Pi computers:
+* The sender is positioned in a relatively sheltered location outdoors and has
+the sensor connected to its GPIO pins
+* The receiver, which is the base station and also acts as the server for the
+Android app
+
+The receiver can be located anywhere, as long as it's also connected to the
+local area network. In the situation this was developed for, this connection is
+only established via WiFi, which may not be turned on all the time. Therefore,
+a significant portion of the code is dedicated to gracefully handling this
+case.
 
 How the different components of the system work together can be visualized
 like this:
