@@ -80,7 +80,7 @@ machines. You might want to start the nodes inside a terminal multiplexer to
 keep them running in the background even if you close your session.
 
 ## License
-[MIT License](LICENSE.md)
+[MIT License](LICENSE)
 
 ## Libraries
 This project was built with the following libraries, whose licenses can be
