@@ -8,7 +8,7 @@
 %% A temperature and humidity measurement with a seconds timestamp in UTC.
 -module(weather).
 -export([sender/2, start/2, server/0]).
--import(util, [get_measurement/1, format_time/1, format_csv_line/1]).
+-import(util, [get_average_measurement/3, format_time/1, format_csv_line/1]).
 
 %% @spec start(SenderNode::node(), Pin::string()) -> no_return()
 %% @doc Spawns the sender process on the sender node and starts receiving.
@@ -59,11 +59,9 @@ sender(Receiver, Pin, Queue) ->
             CurrentQueue = Queue
     end,
     % Take measurement and add it to the head of the queue
-    NewQueue = [get_measurement(Pin) | CurrentQueue],
+    NewQueue = [get_average_measurement(Pin, 5, 60000) | CurrentQueue],
     % Send the whole queue to the receiver
     Receiver ! {self(), NewQueue},
-    % Wait for some time before taking the next measurements
-    timer:sleep(5 * 60000),
     sender(Receiver, Pin, NewQueue).
 
 %% @spec receiver() -> no_return()

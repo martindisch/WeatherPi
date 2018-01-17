@@ -2,7 +2,7 @@
 %% measurements from file and acquiring measurements using the
 %% sensor-specific Python script.
 -module(util).
--export([get_measurement/1, read_history/1,
+-export([get_measurement/1, get_average_measurement/3, read_history/1,
          format_time/1, format_csv/1, format_csv_line/1,
          format_json/1, format_json_item/1]).
 
@@ -27,6 +27,58 @@ get_measurement(Pin) ->
             Hum = list_to_float(HumStr),
             % Return measurements as tuple
             {erlang:system_time(seconds), {Temp, Hum}}
+    end.
+
+%% @spec get_average_measurement(Pin::string(), Number::integer(),
+%%                               Interval::integer()) -> weather:measurement()
+%% @doc Takes the given number of measurements, sleeping for the interval (ms)
+%% inbetween. Returns the average of all measurements with the average of all
+%% timestamps as the time.
+
+get_average_measurement(Pin, Number, Interval) ->
+    get_average_measurement(Pin, Number, Interval, []).
+
+%% @spec get_average_measurement(Pin::string(), Number::integer(),
+%%                               Interval::integer(),
+%%                               Measurements::[weather:measurement()]) ->
+%%           weather:measurement()
+%% @doc Takes the given number of measurements, sleeping for the interval (ms)
+%% inbetween. Returns the average of all measurements with the average of all
+%% timestamps as the time. This is the function doing the actual work of
+%% collecting the measurements with an accumulator.
+
+get_average_measurement(_, 0, _, Measurements) ->
+    compute_average(Measurements);
+get_average_measurement(Pin, Number, Interval, Measurements) ->
+    M = get_measurement(Pin),
+    timer:sleep(Interval),
+    get_average_measurement(Pin, Number - 1, Interval, [M | Measurements]).
+
+%% @spec compute_average(Measurements::[weather:measurement()]) ->
+%%           weather:measurement()
+%% @doc Calculates and returns the average of the given measurements.
+
+compute_average(Measurements) ->
+    % Remove failed measurements
+    M = lists:filter(fun({_, Res}) -> Res /= failure end, Measurements),
+    N = length(M),
+    case N > 0 of
+        true ->
+            % Collect the sum of the individual tuple values
+            {STime, {STemp, SHum}} = lists:foldl(
+                fun({Time, {Temp, Hum}}, {STi, {STe, SHu}}) ->
+                    {STi + Time, {STe + Temp, SHu + Hum}} end,
+                {0, {0, 0}},
+                M),
+            % Calculate and truncate measurement averages
+            AvTime = trunc(STime / N),
+            [AvTempStr] = io_lib:format("~.1f", [STemp / N]),
+            [AvHumStr] = io_lib:format("~.1f", [SHum / N]),
+            % Return the average measurement
+            {AvTime, {list_to_float(AvTempStr),list_to_float(AvHumStr)}};
+        false ->
+            % No valid measurements, return a failure
+            {erlang:system_time(seconds), failure}
     end.
 
 %% @spec read_history(Filename::string()) -> [weather:measurement()]
