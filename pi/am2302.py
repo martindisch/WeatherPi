@@ -17,7 +17,7 @@ def read(pin):
         "failure" if data could not be read
     """
     hum, temp = Adafruit_DHT.read_retry(Adafruit_DHT.AM2302, pin)
-    if hum is not None and temp is not None:
+    if hum is not None and temp is not None and hum <= 100:
         print("{0:0.1f},{1:0.1f}".format(temp, hum))
     else:
         print("failure")
